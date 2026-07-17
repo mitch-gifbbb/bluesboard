@@ -1,0 +1,532 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Changes — a left-handed soloing board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Barlow:wght@400;500&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --chassis:#20211F;
+    --panel:#2A2C28;
+    --edge:#3C3F39;
+    --silk:#E4DDCB;
+    --silk-dim:#8C8878;
+    --amber:#F0A82E;
+    --amber-deep:#8A5D12;
+    --jewel:#C4453B;
+    --blue:#4B8FD6;
+    --sage:#6E7A68;
+    --rosewood:#4A3128;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--chassis);
+    color:var(--silk);
+    font-family:'Barlow',system-ui,sans-serif;
+    padding:18px 16px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+
+  /* ---- panel chrome ---- */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--edge);
+    border-radius:3px;
+    padding:12px 14px;
+    margin-bottom:10px;
+  }
+  .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .row + .row{margin-top:11px}
+  .eyebrow{
+    font-family:'Barlow Condensed',sans-serif;
+    font-size:11px;font-weight:600;
+    letter-spacing:.16em;text-transform:uppercase;
+    color:var(--silk-dim);
+    min-width:96px;
+  }
+  .rule{height:1px;background:var(--edge);margin:11px 0}
+
+  /* ---- controls ---- */
+  button{
+    font-family:'Barlow Condensed',sans-serif;
+    font-size:14px;font-weight:500;letter-spacing:.07em;
+    text-transform:uppercase;
+    color:var(--silk-dim);
+    background:#232521;
+    border:1px solid var(--edge);
+    border-radius:2px;
+    padding:6px 11px;
+    cursor:pointer;
+    transition:color .15s,border-color .15s,background .15s;
+  }
+  button:hover{color:var(--silk);border-color:#575B51}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  button[aria-pressed="true"]{
+    color:#17180F;background:var(--silk);border-color:var(--silk);
+  }
+  .key-btn{min-width:38px;font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:none}
+  .chord-btn{
+    min-width:88px;padding:9px 12px;text-align:left;line-height:1.15;
+  }
+  .chord-btn .rn{
+    display:block;font-size:10px;letter-spacing:.14em;opacity:.65;
+  }
+  .chord-btn .sym{
+    display:block;font-family:'IBM Plex Mono',monospace;
+    font-size:17px;font-weight:600;text-transform:none;letter-spacing:0;
+  }
+  .chord-btn[aria-pressed="true"]{
+    background:var(--amber);border-color:var(--amber);color:#251803;
+  }
+  .deg-btn{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;text-transform:none;letter-spacing:0;
+    min-width:36px;padding:6px 4px;
+  }
+  .ghost{background:none;border-color:transparent;text-decoration:underline;
+         text-underline-offset:3px;padding:6px 4px}
+
+  /* ---- the board ---- */
+  .board-shell{
+    background:#161713;
+    border:1px solid var(--edge);
+    border-radius:3px;
+    padding:10px 6px 4px;
+    margin-bottom:10px;
+    overflow-x:auto;
+  }
+  svg.board{display:block;width:100%;min-width:940px;height:auto}
+
+  .dot{cursor:pointer;transition:opacity .22s ease}
+  .dot circle{transition:fill .22s ease,stroke .22s ease,stroke-width .22s ease}
+  .dot text{
+    font-family:'IBM Plex Mono',monospace;font-weight:600;
+    text-anchor:middle;dominant-baseline:central;
+    pointer-events:none;user-select:none;
+    transition:fill .22s ease;
+  }
+  .dot:hover circle{stroke:#fff;stroke-width:2}
+  .fretnum{
+    font-family:'Barlow Condensed',sans-serif;font-size:12px;
+    letter-spacing:.08em;fill:#5E6157;text-anchor:middle;
+  }
+  .strlbl{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+    fill:#5E6157;text-anchor:middle;dominant-baseline:central;
+  }
+
+  /* ---- legend ---- */
+  .legend{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+  .leg{display:flex;align-items:center;gap:7px;
+       font-family:'Barlow Condensed',sans-serif;font-size:12px;
+       letter-spacing:.09em;text-transform:uppercase;color:var(--silk-dim)}
+  .swatch{width:13px;height:13px;border-radius:50%;flex:none}
+
+  .hint{
+    font-size:13px;color:var(--silk-dim);line-height:1.5;
+    max-width:62ch;margin-top:11px;
+  }
+  .hint b{color:var(--silk);font-weight:500}
+
+  /* ---- reading guide ---- */
+  .stack{display:flex;flex-direction:column;margin-top:2px}
+  .stack-row{
+    display:grid;grid-template-columns:20px 15px 112px 1fr;
+    align-items:center;gap:11px;
+    padding:9px 2px;border-top:1px solid var(--edge);
+  }
+  .stack-row:first-child{border-top:none}
+  .stack .ord{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#575B51}
+  .stack .nm{
+    font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--silk);
+  }
+  .stack .why{font-size:13px;color:var(--silk-dim);line-height:1.45}
+  .stack .why b{color:var(--silk);font-weight:500}
+  @media(max-width:620px){
+    .stack-row{grid-template-columns:20px 15px 1fr;row-gap:4px}
+    .stack .why{grid-column:2/-1}
+  }
+
+  details{margin-top:12px;border-top:1px solid var(--edge);padding-top:11px}
+  summary{
+    font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--silk-dim);
+    cursor:pointer;list-style:none;
+  }
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:'+  ';font-family:'IBM Plex Mono',monospace}
+  details[open] summary::before{content:'\2212  '}
+  summary:hover{color:var(--silk)}
+  summary:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+  .doc{font-size:13.5px;line-height:1.6;color:var(--silk-dim);max-width:72ch;margin-top:13px}
+  .doc h4{
+    font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--silk);
+    margin:17px 0 5px;
+  }
+  .doc h4:first-child{margin-top:0}
+  .doc p{margin:0 0 8px}
+  .doc b{color:var(--silk);font-weight:500}
+  .doc code{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;
+    background:#1B1D19;border:1px solid var(--edge);border-radius:2px;
+    padding:1px 5px;color:var(--silk);
+  }
+  .doc ul{margin:0 0 8px;padding-left:18px}
+  .doc li{margin-bottom:5px}
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important}
+  }
+</style>
+
+<div class="wrap">
+
+  <div class="panel">
+    <div class="row">
+      <span class="eyebrow">Key</span>
+      <div class="row" id="keys" style="gap:5px"></div>
+    </div>
+    <div class="row">
+      <span class="eyebrow">Sound</span>
+      <div class="row" id="modes" style="gap:5px"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <span class="eyebrow">Chord</span>
+      <div class="row" id="chords" style="gap:6px"></div>
+      <button class="ghost" id="clearChord">key only</button>
+    </div>
+    <div class="rule"></div>
+    <div class="row">
+      <span class="eyebrow">Number from</span>
+      <div class="row" id="refs" style="gap:5px"></div>
+      <span style="flex:1"></span>
+      <div class="row" id="labels" style="gap:5px"></div>
+    </div>
+  </div>
+
+  <div class="board-shell">
+    <svg class="board" id="board" viewBox="0 0 1170 316" role="img"
+         aria-label="Left-handed guitar fretboard, nut at right"></svg>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <span class="eyebrow">Show</span>
+      <div class="row" id="layers" style="gap:5px"></div>
+    </div>
+    <div class="rule"></div>
+    <div class="row">
+      <span class="eyebrow">Spotlight</span>
+      <div class="row" id="spots" style="gap:4px"></div>
+    </div>
+    <div class="row">
+      <span class="eyebrow"></span>
+      <div class="row" style="gap:5px">
+        <button id="pGuide">guide tones</button>
+        <button id="pTriad">triad</button>
+        <button id="pRoot">roots</button>
+        <button class="ghost" id="pClear">clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="eyebrow" style="min-width:0;margin-bottom:4px">Every dot asks these in order — first yes wins</div>
+    <div class="stack">
+      <div class="stack-row">
+        <span class="ord">1</span>
+        <span class="swatch" style="background:#F0A82E"></span>
+        <span class="nm">Chord tone</span>
+        <span class="why">A note in the chord you've selected. <b>Land here.</b> The cream ring marks that chord's root.</span>
+      </div>
+      <div class="stack-row">
+        <span class="ord">2</span>
+        <span class="swatch" style="background:#4B8FD6"></span>
+        <span class="nm">Blue note</span>
+        <span class="why">The <code>b3</code> or <code>b5</code>. Deliberate friction — <b>lean on it, don't park on it.</b></span>
+      </div>
+      <div class="stack-row">
+        <span class="ord">3</span>
+        <span class="swatch" style="background:#C4453B"></span>
+        <span class="nm">Key root</span>
+        <span class="why">Home — but <b>not a chord tone right now.</b> Safe, and going nowhere.</span>
+      </div>
+      <div class="stack-row">
+        <span class="ord">4</span>
+        <span class="swatch" style="background:#6E7A68"></span>
+        <span class="nm">Scale note</span>
+        <span class="why">In-bounds, nothing more. <b>Passing material.</b> Drawn smaller on purpose.</span>
+      </div>
+      <div class="stack-row">
+        <span class="ord">—</span>
+        <span class="swatch" style="background:none;border:2px solid #fff"></span>
+        <span class="nm">Spotlit</span>
+        <span class="why">Whatever you picked under Spotlight. Sits on top of the colours above and dims everything else.</span>
+      </div>
+    </div>
+
+    <details>
+      <summary>Reading the board</summary>
+      <div class="doc">
+
+        <h4>Orientation</h4>
+        <p>Nut on the right, low E along the bottom — a mirror of a right-handed diagram. Fret 12 is the far left; past it everything repeats. <b>Click any dot to hear it.</b></p>
+
+        <h4>Two colour changes that look like bugs</h4>
+        <ul>
+          <li><b>The red root vanishes when you pick I or IV.</b> In A, the root is the <code>1</code> of A7 and the <code>5</code> of D7 — so it goes amber. Over E7 it isn't in the chord at all, so it turns red. Red means <i>home, but homeless right now</i>.</li>
+          <li><b>The blue b3 turns amber over the IV.</b> In A blues the <code>b3</code> is C, which is the <code>b7</code> of D7. It stops being a blue note and becomes the most important note in the bar. This is why leaning on that note over the IV always sounds right.</li>
+        </ul>
+
+        <h4>Number from</h4>
+        <p>The oldest argument in improvising, as a toggle: <b>playing the key</b> vs <b>playing the changes</b>. It only changes the numbers and what the Spotlight buttons mean — <b>the colours never move.</b></p>
+        <ul>
+          <li><b>The key</b> — one fixed map. <code>1</code> is always A, <code>b3</code> is always C, whatever chord is sounding. Use it when the whole progression is one landscape: the classic blues where minor pentatonic covers all twelve bars. It's also how you memorise the neck — labels that stay put become geography. Weakness: it tells you nothing about the change. Over E7 it still calls that note <code>4</code>. True, and useless.</li>
+          <li><b>The chord</b> — the map re-spells every time you pick a different chord. The same fret is <code>4</code> over the I, <code>1</code> over the IV, <code>b7</code> over the V. Use it when you want to know what a note <i>does right now</i> — guide tones, resolutions, why some notes are arrival and others are transit. Weakness: nothing stays still, so it's a poor way to learn the layout.</li>
+        </ul>
+        <p><b>The sweet spot:</b> set numbering to <b>the key</b>, then select a chord anyway. Stable geography, and the amber dots still move through the progression — you get the changes as <i>shape</i>, without the labels shifting under you.</p>
+
+        <h4>Show</h4>
+        <p>These are layers, not modes — stack them. Minor pent under Full minor shows you the safe frame sitting inside the fuller scale. Major pent <i>and</i> Minor pent together shows every place on the neck where <code>b3</code> and <code>3</code> sit a fret apart. That pair is the blues.</p>
+
+        <h4>Spotlight</h4>
+        <p>Emphasis, not a filter — everything else fades but stays visible. Numbers are relative to whatever <b>Number from</b> is set to.</p>
+        <ul>
+          <li><b>Guide tones</b> — the 3rd and 7th of the selected chord. Two dots. These spell the change; roots and 5ths don't. If you only chase one thing, chase these.</li>
+          <li><b>Triad</b> — <code>1 3 5</code> of the selected chord.</li>
+          <li><b>Roots</b> — just <code>1</code>. Good for finding your position fast.</li>
+        </ul>
+
+        <h4>A way to practise with it</h4>
+        <p>Set Blues, pick your key, hit <b>guide tones</b>, and loop I7–IV7–V7. Play nothing but those two notes per chord until you can find them without looking. Then turn the pentatonic back on — you'll be decorating targets instead of running a shape.</p>
+
+      </div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+const SHARP=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLAT =['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const DEG  =['1','b2','2','b3','3','4','b5','5','b6','6','b7','7'];
+
+const KEYS=[
+ {pc:0,n:'C',f:0},{pc:7,n:'G',f:0},{pc:2,n:'D',f:0},{pc:9,n:'A',f:0},
+ {pc:4,n:'E',f:0},{pc:11,n:'B',f:0},{pc:6,n:'F#',f:0},{pc:1,n:'Db',f:1},
+ {pc:8,n:'Ab',f:1},{pc:3,n:'Eb',f:1},{pc:10,n:'Bb',f:1},{pc:5,n:'F',f:1}
+];
+
+const QUAL={maj:[0,4,7],min:[0,3,7],dom7:[0,4,7,10],min7:[0,3,7,10]};
+const SUF ={maj:'',min:'m',dom7:'7',min7:'m7'};
+
+const MODES={
+  major:{label:'Major',blue:[3,6],def:['majPent'],
+    chords:[{d:0,q:'maj',rn:'I'},{d:5,q:'maj',rn:'IV'},{d:7,q:'dom7',rn:'V7'}]},
+  minor:{label:'Minor',blue:[6],def:['minPent'],
+    chords:[{d:0,q:'min7',rn:'i7'},{d:5,q:'min7',rn:'iv7'},{d:7,q:'min7',rn:'v7'}]},
+  blues:{label:'Blues',blue:[3,6],def:['minPent'],
+    chords:[{d:0,q:'dom7',rn:'I7'},{d:5,q:'dom7',rn:'IV7'},{d:7,q:'dom7',rn:'V7'}]}
+};
+
+const LAYERS={
+  majPent:{label:'Major pent',  set:[0,2,4,7,9]},
+  minPent:{label:'Minor pent',  set:[0,3,5,7,10]},
+  fullMaj:{label:'Full major',  set:[0,2,4,5,7,9,11]},
+  fullMin:{label:'Full minor',  set:[0,2,3,5,7,8,10]},
+  mixo:   {label:'Mixolydian',  set:[0,2,4,5,7,9,10]}
+};
+
+const S={key:KEYS[3],mode:'blues',chord:null,ref:'chord',
+         layers:new Set(['minPent']),blue:true,label:'deg',spot:new Set()};
+
+/* ---------- geometry (left-handed: nut right, low E bottom) ---------- */
+const FRETS=12, CELL=82.5, NUTX=1092, TOPY=44, GAP=41;
+const OPEN=[4,11,7,2,9,4];              // high E → low E
+const MIDI=[64,59,55,50,45,40];
+const NAMES=['e','B','G','D','A','E'];
+const fx=f=>NUTX-(f-0.5)*CELL;
+const sy=s=>TOPY+s*GAP;
+
+const board=document.getElementById('board');
+let dots=[];
+
+function buildBoard(){
+  const L=NUTX-FRETS*CELL, R=NUTX, T=TOPY-24, B=sy(5)+24;
+  let g=`<defs>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85 0.011" numOctaves="4" seed="9"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 .16 0 0 0 0 .09 0 0 0 0 .06 0 0 0 .5 0"/>
+    </filter>
+    <linearGradient id="fret" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8E897A"/><stop offset=".45" stop-color="#D6D0BE"/>
+      <stop offset="1" stop-color="#6E6A5D"/>
+    </linearGradient>
+    <radialGradient id="pearl"><stop offset="0" stop-color="#F6F2E4"/>
+      <stop offset="1" stop-color="#B6AF98"/></radialGradient>
+  </defs>`;
+
+  g+=`<rect x="${L}" y="${T}" width="${R-L}" height="${B-T}" rx="2" fill="var(--rosewood)"/>`;
+  g+=`<rect x="${L}" y="${T}" width="${R-L}" height="${B-T}" rx="2" filter="url(#grain)" opacity=".6"/>`;
+
+  // inlays
+  [3,5,7,9].forEach(f=>g+=`<circle cx="${fx(f)}" cy="${(T+B)/2}" r="7" fill="url(#pearl)" opacity=".82"/>`);
+  [-1,1].forEach(k=>g+=`<circle cx="${fx(12)}" cy="${(T+B)/2+k*41}" r="7" fill="url(#pearl)" opacity=".82"/>`);
+
+  // frets + nut
+  for(let f=1;f<=FRETS;f++){
+    const x=NUTX-f*CELL;
+    g+=`<rect x="${x-1.4}" y="${T}" width="2.8" height="${B-T}" fill="url(#fret)"/>`;
+  }
+  g+=`<rect x="${NUTX-3}" y="${T}" width="6" height="${B-T}" rx="1.5" fill="#E8E0CC"/>`;
+
+  // strings
+  for(let s=0;s<6;s++){
+    const w=1+s*0.45;
+    g+=`<rect x="${L}" y="${sy(s)-w/2}" width="${NUTX+52-L}" height="${w}" fill="#A8A092" opacity=".75"/>`;
+    g+=`<text class="strlbl" x="${NUTX+62}" y="${sy(s)}">${NAMES[s]}</text>`;
+  }
+
+  // fret numbers
+  for(let f=1;f<=FRETS;f++) g+=`<text class="fretnum" x="${fx(f)}" y="${B+22}">${f}</text>`;
+  g+=`<text class="fretnum" x="${NUTX+26}" y="${B+22}">0</text>`;
+
+  // dots
+  for(let s=0;s<6;s++) for(let f=0;f<=FRETS;f++){
+    const x=f===0?NUTX+26:fx(f);
+    g+=`<g class="dot" data-s="${s}" data-f="${f}" transform="translate(${x},${sy(s)})">
+          <circle r="15"/><text y="1" font-size="13"></text></g>`;
+  }
+  board.innerHTML=g;
+  dots=[...board.querySelectorAll('.dot')];
+  dots.forEach(d=>d.addEventListener('click',()=>pluck(+d.dataset.s,+d.dataset.f)));
+}
+
+/* ---------- audio ---------- */
+let ac=null;
+function pluck(s,f){
+  ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+  const hz=440*Math.pow(2,(MIDI[s]+f-69)/12);
+  const o=ac.createOscillator(), g=ac.createGain(), lp=ac.createBiquadFilter();
+  o.type='sawtooth'; o.frequency.value=hz;
+  lp.type='lowpass'; lp.frequency.setValueAtTime(3400,ac.currentTime);
+  lp.frequency.exponentialRampToValueAtTime(700,ac.currentTime+.7);
+  g.gain.setValueAtTime(.0001,ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(.28,ac.currentTime+.008);
+  g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+1.5);
+  o.connect(lp).connect(g).connect(ac.destination);
+  o.start(); o.stop(ac.currentTime+1.55);
+}
+
+/* ---------- helpers ---------- */
+const nm=pc=>(S.key.f?FLAT:SHARP)[pc%12];
+function chordInfo(){
+  if(S.chord===null) return null;
+  const c=MODES[S.mode].chords[S.chord];
+  return {pc:(S.key.pc+c.d)%12, ivs:QUAL[c.q], rn:c.rn, q:c.q,
+          sym:nm((S.key.pc+c.d)%12)+SUF[c.q]};
+}
+const refPc=()=>{const c=chordInfo(); return (S.ref==='chord'&&c)?c.pc:S.key.pc;};
+
+/* ---------- render ---------- */
+function update(){
+  const c=chordInfo(), rp=refPc(), blue=MODES[S.mode].blue;
+  const act=[...S.layers].flatMap(k=>LAYERS[k].set);
+
+  dots.forEach(d=>{
+    const s=+d.dataset.s, f=+d.dataset.f;
+    const pc=(OPEN[s]+f)%12;
+    const dk=(pc-S.key.pc+12)%12;
+    const dr=(pc-rp+12)%12;
+    const isChord = c && c.ivs.includes((pc-c.pc+12)%12);
+    const isBlue  = S.blue && blue.includes(dk);
+    const inLayer = act.includes(dk);
+
+    if(!(isChord||isBlue||inLayer)){ d.style.opacity=0; d.style.pointerEvents='none'; return; }
+    d.style.pointerEvents='auto';
+
+    const circ=d.querySelector('circle'), txt=d.querySelector('text');
+    let fill, ink='#17180F', r=15;
+
+    if(isChord){ fill='var(--amber)'; }
+    else if(isBlue){ fill='var(--blue)'; ink='#0B1B2B'; }
+    else if(dk===0){ fill='var(--jewel)'; ink='#FBEDEA'; }
+    else { fill='var(--sage)'; ink='#12160F'; r=12.5; }
+
+    const lit=S.spot.size>0 && S.spot.has(dr);
+    circ.setAttribute('fill',fill);
+    circ.setAttribute('r', lit?16:r);
+    circ.setAttribute('stroke', lit?'#FFFFFF' : (isChord&&(pc-c.pc+12)%12===0 ? '#FFF3DA':'none'));
+    circ.setAttribute('stroke-width', lit?2.5:(isChord&&(pc-c.pc+12)%12===0?2:0));
+    txt.setAttribute('fill',ink);
+    txt.textContent = S.label==='deg' ? DEG[dr] : nm(pc);
+    d.style.opacity = (S.spot.size>0 && !lit) ? .22 : 1;
+  });
+}
+
+/* ---------- controls ---------- */
+function chip(txt,on,fn,cls=''){
+  const b=document.createElement('button');
+  b.className=cls; b.innerHTML=txt; b.setAttribute('aria-pressed',on);
+  b.onclick=fn; return b;
+}
+function paint(){
+  const k=document.getElementById('keys'); k.innerHTML='';
+  KEYS.forEach(K=>k.append(chip(K.n,K===S.key,()=>{S.key=K;paint();update();},'key-btn')));
+
+  const m=document.getElementById('modes'); m.innerHTML='';
+  Object.entries(MODES).forEach(([id,M])=>m.append(chip(M.label,S.mode===id,()=>{
+    S.mode=id; S.layers=new Set(M.def); S.spot.clear(); paint(); update();
+  })));
+
+  const ch=document.getElementById('chords'); ch.innerHTML='';
+  MODES[S.mode].chords.forEach((c,i)=>{
+    const pc=(S.key.pc+c.d)%12;
+    ch.append(chip(`<span class="rn">${c.rn}</span><span class="sym">${nm(pc)+SUF[c.q]}</span>`,
+      S.chord===i,()=>{S.chord=(S.chord===i?null:i);paint();update();},'chord-btn'));
+  });
+
+  const rf=document.getElementById('refs'); rf.innerHTML='';
+  [['key','the key'],['chord','the chord']].forEach(([id,l])=>
+    rf.append(chip(l,S.ref===id,()=>{S.ref=id;paint();update();})));
+
+  const lb=document.getElementById('labels'); lb.innerHTML='';
+  [['deg','numbers'],['name','note names']].forEach(([id,l])=>
+    lb.append(chip(l,S.label===id,()=>{S.label=id;paint();update();})));
+
+  const ly=document.getElementById('layers'); ly.innerHTML='';
+  Object.entries(LAYERS).forEach(([id,L])=>ly.append(chip(L.label,S.layers.has(id),()=>{
+    S.layers.has(id)?S.layers.delete(id):S.layers.add(id); paint(); update();
+  })));
+  ly.append(chip('Blue notes',S.blue,()=>{S.blue=!S.blue;paint();update();}));
+
+  const sp=document.getElementById('spots'); sp.innerHTML='';
+  DEG.forEach((d,i)=>sp.append(chip(d,S.spot.has(i),()=>{
+    S.spot.has(i)?S.spot.delete(i):S.spot.add(i); paint(); update();
+  },'deg-btn')));
+}
+
+document.getElementById('clearChord').onclick=()=>{S.chord=null;paint();update();};
+document.getElementById('pClear').onclick=()=>{S.spot.clear();paint();update();};
+document.getElementById('pRoot').onclick=()=>{S.spot=new Set([0]);paint();update();};
+document.getElementById('pTriad').onclick=()=>{
+  const c=chordInfo(); const iv=c?c.ivs:[0,4,7];
+  S.spot=new Set(iv.slice(0,3)); paint(); update();
+};
+document.getElementById('pGuide').onclick=()=>{
+  const c=chordInfo();
+  const iv=c?c.ivs:(S.mode==='minor'?[0,3,7,10]:[0,4,7,10]);
+  const third=iv.includes(4)?4:3, sev=iv.includes(10)?10:(iv.includes(11)?11:null);
+  S.spot=new Set(sev===null?[third]:[third,sev]);
+  S.ref='chord'; paint(); update();
+};
+
+buildBoard(); paint(); update();
+</script>
