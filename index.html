@@ -191,6 +191,13 @@
     </div>
     <div class="rule"></div>
     <div class="row">
+      <span class="eyebrow">Position</span>
+      <div class="row" id="posbtns" style="gap:5px"></div>
+      <span style="flex:1"></span>
+      <button id="arpBtn">Arp box</button>
+    </div>
+    <div class="rule"></div>
+    <div class="row">
       <span class="eyebrow">Spotlight</span>
       <div class="row" id="spots" style="gap:4px"></div>
     </div>
@@ -272,6 +279,10 @@
         <p>Clamps the board to three adjacent strings. The board deals in pitch classes — it knows <i>which notes</i>, not <i>which voicing</i> — so on its own it'll show you six different <code>3</code>s and won't say which one belongs in a shape. Clamping fixes that by removing everything that isn't reachable in one grip.</p>
         <p><b>For triads:</b> layers off, pick a chord, hit <b>Triad</b>, clamp to <b>1–3</b>. What's left is that triad and its inversions, stacked up the neck in order. Move to <b>2–4</b>, <b>3–5</b>, <b>4–6</b> and the same three notes re-voice themselves on each string set.</p>
 
+        <h4>Position &amp; arpeggio boxes</h4>
+        <p>Strings clamp the neck vertically; <b>Position</b> clamps it horizontally, to a window of frets. Together they isolate one box you can actually finger. The <code>+</code> and <code>\u2212</code> buttons slide the window up and down the neck; <b>4 fr</b> / <b>5 fr</b> set how wide it is; <b>All</b> turns it off. The window opens anchored to a root, and follows the key when you change it.</p>
+        <p><b>Arp box</b> is the one-tap version for what you're after: it clears the layers, selects a chord if none is set, and drops a 4-fret window on the root. What's left is the bare <code>1 3 5 b7</code> — the dominant-7 arpeggio, as a single shape to run. Slide it with <code>+</code>/<code>\u2212</code> to get the same arpeggio in every position, or drop to a string set to drill one sweep. In <b>Three boards</b> you get the I, IV and V arpeggio boxes side by side — the exact shapes the changes are asking for.</p>
+
         <h4>A way to practise with it</h4>
         <p>Set Blues, pick your key, hit <b>guide tones</b>, and loop I7–IV7–V7. Play nothing but those two notes per chord until you can find them without looking. Then turn the pentatonic back on — you'll be decorating targets instead of running a shape.</p>
 
@@ -325,7 +336,7 @@ const PATTERNS={
 const S={key:KEYS[3],mode:'blues',chord:null,ref:'chord',
          layers:new Set(),blue:false,label:'deg',
          spotMode:'none',spot:new Set(),strings:null,
-         view:'single',active:null,hand:'left'};
+         view:'single',active:null,hand:'left',pos:null,posWidth:4};
 
 const P={playing:false,bpm:100,pat:'standard',bar:0,beat:0,timer:null,click:false};
 
@@ -456,6 +467,24 @@ function spotSetFor(idx){
 }
 const spotActive=()=> S.spotMode!=='none' && (S.spotMode!=='custom' || S.spot.size>0);
 
+const rootFretLowE=()=> ((S.key.pc-OPEN[5])%12+12)%12;
+function enablePos(){
+  let lo=Math.min(rootFretLowE(), FRETS-S.posWidth+1);
+  lo=Math.max(0,lo);
+  S.pos={lo, hi:lo+S.posWidth-1};
+}
+function slidePos(d){
+  if(!S.pos){ enablePos(); return; }
+  let lo=Math.max(0, Math.min(FRETS-S.posWidth+1, S.pos.lo+d));
+  S.pos={lo, hi:lo+S.posWidth-1};
+}
+function arpPreset(){
+  S.layers=new Set(); S.blue=false; S.spotMode='none'; S.spot.clear();
+  if(S.chord==null) S.chord=0;
+  S.posWidth=4; enablePos();
+  refresh();
+}
+
 /* ---------- render ---------- */
 function renderBoard(inst){
   const idx = inst.chordFixed!=null ? inst.chordFixed : S.chord;
@@ -468,6 +497,7 @@ function renderBoard(inst){
     const s=+d.dataset.s, f=+d.dataset.f;
     const bmEl=d.querySelector('.bendmark'); if(bmEl) bmEl.style.display='none';
     if(S.strings && (s<S.strings[0]||s>S.strings[1])){ d.style.opacity=0; d.style.pointerEvents='none'; return; }
+    if(S.pos && (f<S.pos.lo||f>S.pos.hi)){ d.style.opacity=0; d.style.pointerEvents='none'; return; }
     const pc=(OPEN[s]+f)%12;
     const dk=(pc-S.key.pc+12)%12;
     const dr=(pc-rp+12)%12;
@@ -649,6 +679,17 @@ function paint(){
     ss.append(chip(T.label,on,()=>{S.strings=T.r;refresh();},'deg-btn'));
   });
 
+  const pbx=document.getElementById('posbtns'); pbx.innerHTML='';
+  pbx.append(chip('All',S.pos===null,()=>{S.pos=null;refresh();},'deg-btn'));
+  pbx.append(chip('\u2212',false,()=>{slidePos(-1);refresh();},'deg-btn'));
+  const lbl=document.createElement('span');
+  lbl.style.cssText='font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--silk-dim);min-width:54px;text-align:center';
+  lbl.textContent = S.pos ? `${S.pos.lo}\u2013${S.pos.hi}` : 'off';
+  pbx.append(lbl);
+  pbx.append(chip('+',false,()=>{slidePos(1);refresh();},'deg-btn'));
+  [['4 fr',4],['5 fr',5]].forEach(([l,w])=>pbx.append(
+    chip(l,S.posWidth===w,()=>{S.posWidth=w;if(S.pos)enablePos();refresh();},'deg-btn')));
+
   const sp=document.getElementById('spots'); sp.innerHTML='';
   DEG.forEach((d,i)=>sp.append(chip(d, S.spotMode==='custom'&&S.spot.has(i), ()=>{
     S.spotMode='custom';
@@ -668,6 +709,7 @@ function paint(){
 }
 
 document.getElementById('clearChord').onclick=()=>{S.chord=null;refresh();};
+document.getElementById('arpBtn').onclick=arpPreset;
 
 rebuildBoards(); paint(); paintStrip();
 </script>
