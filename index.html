@@ -34,11 +34,15 @@
   button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
   button[aria-pressed="true"]{color:#17180F;background:var(--silk);border-color:var(--silk);}
   .key-btn{min-width:38px;font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:none}
-  .chord-btn{min-width:88px;padding:9px 12px;text-align:left;line-height:1.15;}
+  .chord-btn{min-width:88px;padding:9px 12px;text-align:left;line-height:1.15;position:relative;}
   .chord-btn .rn{display:block;font-size:10px;letter-spacing:.14em;opacity:.65;}
   .chord-btn .sym{display:block;font-family:'IBM Plex Mono',monospace;font-size:17px;
     font-weight:600;text-transform:none;letter-spacing:0;}
   .chord-btn[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:#251803;}
+  .chord-btn .del{position:absolute;top:-7px;right:-7px;width:17px;height:17px;line-height:15px;
+    text-align:center;border-radius:50%;background:#3C3F39;color:var(--silk);font-size:12px;
+    border:1px solid var(--edge);font-family:'Barlow',sans-serif;}
+  .chord-btn .del:hover{background:var(--jewel);color:#fff;border-color:var(--jewel)}
   .deg-btn{font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:none;
     letter-spacing:0;min-width:36px;padding:6px 4px;}
   .ghost{background:none;border-color:transparent;text-decoration:underline;
@@ -139,9 +143,18 @@
 
   <div class="panel">
     <div class="row">
-      <span class="eyebrow">Chord</span>
+      <span class="eyebrow">Progression</span>
       <div class="row" id="chords" style="gap:6px"></div>
       <button class="ghost" id="clearChord">key only</button>
+    </div>
+    <div class="rule"></div>
+    <div class="row">
+      <span class="eyebrow">Add chord</span>
+      <div class="row" id="diatonic" style="gap:5px"></div>
+    </div>
+    <div class="row">
+      <span class="eyebrow"></span>
+      <div class="row" id="progTools" style="gap:6px;align-items:center"></div>
     </div>
     <div class="rule"></div>
     <div class="row">
@@ -261,6 +274,10 @@
           <li><b>Feel</b> — <i>Standard</i> is the plain 12-bar. <i>Quick change</i> moves to the IV in bar 2, which a lot of tunes do. <b>Click</b> turns on a metronome if you're practising without a track.</li>
         </ul>
 
+        <h4>Building a progression</h4>
+        <p>The scale (set by <b>Sound</b>) and the chords you play over are separate things. <b>Add chord</b> lists the seven chords that belong to your key — click to drop them into the <b>Progression</b> row, up to five. Say you're in E minor: click <code>i</code>, <code>VII</code>, <code>VI</code> and you've built Em → D → Cmaj7. The <b>7ths</b> / <b>Triads</b> toggle sets whether they come in as seventh chords or plain triads. The <code>\u00d7</code> on each slot removes it; <b>Reset</b> restores the mode's I-IV-V; <b>Clear all</b> empties it.</p>
+        <p>Once built, everything works the way it always has: click a chord to re-spell the board against it, turn on <b>Bends</b> or <b>Arp box</b> to see the targets for that chord, or go to <b>Split</b> to lay all of them out at once. Hit <b>Play</b> and it walks your progression one chord per bar, looping — set the BPM to your backing track and solo the changes. (The 12-bar blues form only applies to the untouched blues default; any custom progression just cycles.)</p>
+
         <h4>Show</h4>
         <p>These are layers, not modes — stack them. Minor pent under Full minor shows you the safe frame sitting inside the fuller scale. Major pent <i>and</i> Minor pent together shows every place on the neck where <code>b3</code> and <code>3</code> sit a fret apart. That pair is the blues.</p>
 
@@ -303,8 +320,20 @@ const KEYS=[
  {pc:8,n:'Ab',f:1},{pc:3,n:'Eb',f:1},{pc:10,n:'Bb',f:1},{pc:5,n:'F',f:1}
 ];
 
-const QUAL={maj:[0,4,7],min:[0,3,7],dom7:[0,4,7,10],min7:[0,3,7,10]};
-const SUF ={maj:'',min:'m',dom7:'7',min7:'m7'};
+const QUAL={maj:[0,4,7],min:[0,3,7],dim:[0,3,6],dom7:[0,4,7,10],min7:[0,3,7,10],maj7:[0,4,7,11],m7b5:[0,3,6,10]};
+const SUF ={maj:'',min:'m',dim:'dim',dom7:'7',min7:'m7',maj7:'maj7',m7b5:'m7b5'};
+
+const DIATONIC={
+  major:{deg:[0,2,4,5,7,9,11],
+    rn:['I','ii','iii','IV','V','vi','vii°'],
+    tri:['maj','min','min','maj','maj','min','dim'],
+    sev:['maj7','min7','min7','maj7','dom7','min7','m7b5']},
+  minor:{deg:[0,2,3,5,7,8,10],
+    rn:['i','ii°','III','iv','v','VI','VII'],
+    tri:['min','dim','maj','min','min','maj','maj'],
+    sev:['min7','m7b5','maj7','min7','min7','maj7','dom7']}
+};
+const tonality=()=> S.mode==='major' ? 'major' : 'minor';
 
 const MODES={
   major:{label:'Major',blue:[3,6],def:['majPent'],
@@ -336,7 +365,8 @@ const PATTERNS={
 const S={key:KEYS[3],mode:'blues',chord:null,ref:'chord',
          layers:new Set(),blue:false,label:'deg',
          spotMode:'none',spot:new Set(),strings:null,
-         view:'single',active:null,hand:'left',pos:null,posWidth:4};
+         view:'single',active:null,hand:'left',pos:null,posWidth:4,
+         prog:MODES['blues'].chords.map(c=>({...c})),customProg:false,dia7:true};
 
 const P={playing:false,bpm:100,pat:'standard',bar:0,beat:0,timer:null,click:false};
 
@@ -386,7 +416,7 @@ function boardMarkup(uid){
     g+=`<g class="dot" data-s="${s}" data-f="${f}" transform="translate(${x},${sy(s)})">
           <circle r="15"/><text y="1" font-size="13"></text>
           <g class="bendmark" style="display:none;pointer-events:none">
-            <text class="bendlbl" x="${S.hand==='right'?-19:19}" y="-17" font-size="12" fill="var(--amber)" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-weight:600"></text>
+            <text class="bendlbl" x="19" y="-17" font-size="12" fill="var(--amber)" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-weight:600"></text>
           </g></g>`;}
   return g;
 }
@@ -407,9 +437,15 @@ function makeBoard(chordFixed,compact){
 
 function rebuildBoards(){
   boardsWrap.innerHTML=''; boards=[];
-  if(S.view==='three') boards=[makeBoard(0,true),makeBoard(1,true),makeBoard(2,true)];
-  else boards=[makeBoard(null,false)];
+  if(S.view==='three' && S.prog.length){
+    for(let i=0;i<Math.min(S.prog.length,5);i++) boards.push(makeBoard(i,true));
+  } else boards=[makeBoard(null,false)];
   renderAll();
+}
+function progChanged(){
+  if(S.chord!=null && S.chord>=S.prog.length) S.chord=null;
+  if(S.view==='three') rebuildBoards();
+  refresh(); paintStrip();
 }
 
 /* ---------- audio ---------- */
@@ -446,7 +482,7 @@ function metronome(down){
 const nm=pc=>(S.key.f?FLAT:SHARP)[pc%12];
 function chordInfo(idx){
   if(idx==null) return null;
-  const c=MODES[S.mode].chords[idx];
+  const c=S.prog[idx]; if(!c) return null;
   return {pc:(S.key.pc+c.d)%12, ivs:QUAL[c.q], rn:c.rn, q:c.q,
           sym:nm((S.key.pc+c.d)%12)+SUF[c.q]};
 }
@@ -555,20 +591,26 @@ function renderAll(){ boards.forEach(renderBoard); }
 
 /* ---------- player ---------- */
 function beatDur(){ return 60000/P.bpm; }
+function playSeq(){
+  return (S.mode==='blues' && !S.customProg) ? PATTERNS[S.pat] : S.prog.map((_,i)=>i);
+}
 function onBar(){
-  const idx=PATTERNS[P.pat][P.bar];
+  const seq=playSeq(); if(!seq.length) return;
+  const idx=seq[P.bar%seq.length];
   S.active=idx;
   if(S.view==='single') S.chord=idx;
   renderAll(); markChords();
 }
 function tick(){
+  const seq=playSeq(); const n=Math.max(seq.length,1);
   P.beat++;
-  if(P.beat>=4){ P.beat=0; P.bar=(P.bar+1)%12; onBar(); }
+  if(P.beat>=4){ P.beat=0; P.bar=(P.bar+1)%n; onBar(); }
   if(P.click) metronome(P.beat===0);
   paintStrip();
 }
 function startPlay(){
   if(P.playing) return;
+  if(!playSeq().length) return;
   ensureAudio();
   P.playing=true; P.bar=0; P.beat=0;
   onBar(); paintStrip(); if(P.click) metronome(true);
@@ -609,10 +651,15 @@ function markPlay(){
 }
 function paintStrip(){
   const st=document.getElementById('barstrip'); if(!st) return;
-  const pat=PATTERNS[P.pat]; let h='';
-  for(let b=0;b<12;b++){
-    const ci=chordInfo(pat[b]); const on=P.playing && b===P.bar;
-    h+=`<div class="barcell${on?' on':''}"><span class="bn">${b+1}</span>${ci.rn}`+
+  const b12 = S.mode==='blues' && !S.customProg;
+  const seq = playSeq();
+  st.style.gridTemplateColumns = `repeat(${Math.max(seq.length,1)},1fr)`;
+  let h='';
+  for(let b=0;b<seq.length;b++){
+    const ci=chordInfo(seq[b]); if(!ci) continue;
+    const on=P.playing && b===P.bar;
+    const lab = b12 ? ci.rn : ci.sym;
+    h+=`<div class="barcell${on?' on':''}"><span class="bn">${b+1}</span>${lab}`+
        (on?`<div class="beatpips">${[0,1,2,3].map(p=>`<span class="pip${p<=P.beat?' on':''}"></span>`).join('')}</div>`:'')+
        `</div>`;
   }
@@ -625,15 +672,50 @@ function paint(){
 
   const m=document.getElementById('modes'); m.innerHTML='';
   Object.entries(MODES).forEach(([id,M])=>m.append(chip(M.label,S.mode===id,()=>{
-    S.mode=id; S.layers=new Set(M.def); refresh(); paintStrip();
+    S.mode=id; S.layers=new Set(M.def);
+    S.prog=MODES[id].chords.map(c=>({...c})); S.customProg=false; S.chord=null;
+    if(S.view==='three') rebuildBoards();
+    refresh(); paintStrip();
   })));
 
   const ch=document.getElementById('chords'); ch.innerHTML='';
-  MODES[S.mode].chords.forEach((c,i)=>{
+  S.prog.forEach((c,i)=>{
     const pc=(S.key.pc+c.d)%12;
-    ch.append(chip(`<span class="rn">${c.rn}</span><span class="sym">${nm(pc)+SUF[c.q]}</span>`,
-      S.chord===i,()=>{S.chord=(S.chord===i?null:i);refresh();},'chord-btn'));
+    const b=chip(`<span class="rn">${c.rn}</span><span class="sym">${nm(pc)+SUF[c.q]}</span><span class="del" data-i="${i}">\u00d7</span>`,
+      S.chord===i,(e)=>{
+        if(e&&e.target&&e.target.classList.contains('del')){
+          e.stopPropagation();
+          S.prog.splice(i,1);
+          if(S.chord===i) S.chord=null; else if(S.chord!=null&&S.chord>i) S.chord--;
+          S.customProg=true; progChanged(); return;
+        }
+        S.chord=(S.chord===i?null:i); refresh();
+      },'chord-btn');
+    ch.append(b);
   });
+
+  const di=document.getElementById('diatonic'); di.innerHTML='';
+  const DT=DIATONIC[tonality()];
+  DT.deg.forEach((dd,i)=>{
+    const q = S.dia7 ? DT.sev[i] : DT.tri[i];
+    const pc=(S.key.pc+dd)%12;
+    const full = S.prog.length>=5;
+    const b=chip(`<span class="rn">${DT.rn[i]}</span><span class="sym">${nm(pc)+SUF[q]}</span>`,
+      false,()=>{ if(S.prog.length<5){ S.prog.push({d:dd,q,rn:DT.rn[i]}); S.customProg=true; progChanged(); } },'chord-btn');
+    if(full){ b.disabled=true; b.style.opacity=.35; b.style.cursor='default'; }
+    di.append(b);
+  });
+
+  const pt=document.getElementById('progTools'); pt.innerHTML='';
+  pt.append(chip('7ths',S.dia7,()=>{S.dia7=true;paint();}));
+  pt.append(chip('Triads',!S.dia7,()=>{S.dia7=false;paint();}));
+  const sep=document.createElement('span'); sep.style.cssText='width:10px'; pt.append(sep);
+  pt.append(chip('Reset to '+(S.mode==='blues'?'I-IV-V':'default'),false,()=>{
+    S.prog=MODES[S.mode].chords.map(c=>({...c})); S.customProg=false; S.chord=null; progChanged();
+  },'ghost'));
+  pt.append(chip('Clear all',false,()=>{
+    S.prog=[]; S.customProg=true; S.chord=null; progChanged();
+  },'ghost'));
 
   const rf=document.getElementById('refs'); rf.innerHTML='';
   [['key','the key'],['chord','the chord']].forEach(([id,l])=>
@@ -644,7 +726,7 @@ function paint(){
     lb.append(chip(l,S.label===id,()=>{S.label=id;refresh();})));
 
   const vw=document.getElementById('view'); vw.innerHTML='';
-  [['single','One board'],['three','Three boards']].forEach(([id,l])=>
+  [['single','One board'],['three','Split (per chord)']].forEach(([id,l])=>
     vw.append(chip(l,S.view===id,()=>{S.view=id;rebuildBoards();if(P.playing)onBar();paint();paintStrip();})));
 
   const hd=document.getElementById('hand'); hd.innerHTML='';
@@ -664,8 +746,15 @@ function paint(){
   bi.addEventListener('keydown',e=>{if(e.key==='Enter'){setBpm(+e.target.value);e.target.blur();}});
 
   const pg=document.getElementById('prog'); pg.innerHTML='';
-  [['standard','Standard'],['quick','Quick change']].forEach(([id,l])=>
-    pg.append(chip(l,P.pat===id,()=>{P.pat=id;refresh();paintStrip();})));
+  if(S.mode==='blues' && !S.customProg){
+    [['standard','Standard'],['quick','Quick change']].forEach(([id,l])=>
+      pg.append(chip(l,P.pat===id,()=>{P.pat=id;refresh();paintStrip();})));
+  } else {
+    const note=document.createElement('span');
+    note.style.cssText='font-size:12px;color:var(--silk-dim)';
+    note.textContent = S.prog.length ? 'one chord per bar, looping' : 'add chords to build a progression';
+    pg.append(note);
+  }
 
   const ly=document.getElementById('layers'); ly.innerHTML='';
   Object.entries(LAYERS).forEach(([id,L])=>ly.append(chip(L.label,S.layers.has(id),()=>{
