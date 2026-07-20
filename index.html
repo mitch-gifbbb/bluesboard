@@ -386,7 +386,7 @@ function boardMarkup(uid){
     g+=`<g class="dot" data-s="${s}" data-f="${f}" transform="translate(${x},${sy(s)})">
           <circle r="15"/><text y="1" font-size="13"></text>
           <g class="bendmark" style="display:none;pointer-events:none">
-            <text class="bendlbl" x="19" y="-17" font-size="12" fill="var(--amber)" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-weight:600"></text>
+            <text class="bendlbl" x="${S.hand==='right'?-19:19}" y="-17" font-size="12" fill="var(--amber)" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-weight:600"></text>
           </g></g>`;}
   return g;
 }
@@ -520,7 +520,7 @@ function renderBoard(inst){
       const triad=QUAL[c.q].slice(0,3);
       for(const amt of [1,2]){
         const ti=(pc+amt-c.pc+12)%12;
-        if(triad.includes(ti)){ bend={amt, tgt:DEG[ti]}; break; }
+        if(triad.includes(ti)){ bend={amt, tgt:DEG[(pc+amt-rp+12)%12]}; break; }
       }
       const isTriadTgt = isChord && triad.includes((pc-c.pc+12)%12);
       lit = !!bend || isTriadTgt;
