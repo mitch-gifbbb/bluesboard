@@ -125,6 +125,23 @@
   .doc ul{margin:0 0 8px;padding-left:18px}
   .doc li{margin-bottom:5px}
 
+  .refsel{font-family:'IBM Plex Mono',monospace;font-size:14px;background:#232521;color:var(--silk);
+    border:1px solid var(--edge);border-radius:2px;padding:7px 10px;cursor:pointer}
+  .refsel:focus{outline:2px solid var(--amber)}
+  .refcap{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--silk-dim);margin:6px 0 8px}
+  .reftable{width:100%;border-collapse:collapse;font-size:14px}
+  .reftable th{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--silk-dim);text-align:left;padding:6px 10px;
+    border-bottom:1px solid var(--edge);font-weight:600}
+  .reftable td{padding:9px 10px;border-bottom:1px solid #2b2e28;color:var(--silk)}
+  .reftable td.deg{font-family:'IBM Plex Mono',monospace;color:var(--amber);font-weight:600;width:64px}
+  .reftable td.note{font-family:'IBM Plex Mono',monospace;font-weight:600;width:64px}
+  .reftable td.qual b{font-family:'IBM Plex Mono',monospace;font-weight:600}
+  .reftable td.qual .w{color:var(--silk-dim);margin-left:7px;font-size:12.5px}
+  .reftable tr.tonic td{background:rgba(240,168,46,.09)}
+  .reftable tr:last-child td{border-bottom:none}
+
   @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 </style>
 
@@ -307,6 +324,19 @@
     </details>
   </div>
 
+  <div class="panel">
+    <details id="refDetails">
+      <summary>Scale &amp; mode reference</summary>
+      <div style="margin-top:13px">
+        <div class="row" style="gap:10px;margin-bottom:4px">
+          <select id="refKeySel" class="refsel"></select>
+          <div class="row" id="refTon" style="gap:5px"></div>
+        </div>
+        <div id="refTable"></div>
+      </div>
+    </details>
+  </div>
+
 </div>
 
 <script>
@@ -334,6 +364,10 @@ const DIATONIC={
     sev:['min7','m7b5','maj7','min7','min7','maj7','dom7']}
 };
 const tonality=()=> S.mode==='major' ? 'major' : 'minor';
+
+const MAJ_MODES=['Ionian','Dorian','Phrygian','Lydian','Mixolydian','Aeolian','Locrian'];
+const MIN_MODES=['Aeolian','Locrian','Ionian','Dorian','Phrygian','Lydian','Mixolydian'];
+const QWORD={maj:'major',min:'minor',dim:'diminished'};
 
 const MODES={
   major:{label:'Major',blue:[3,6],def:['majPent'],
@@ -366,7 +400,8 @@ const S={key:KEYS[3],mode:'blues',chord:null,ref:'chord',
          layers:new Set(),blue:false,label:'deg',
          spotMode:'none',spot:new Set(),strings:null,
          view:'single',active:null,hand:'left',pos:null,posWidth:4,
-         prog:MODES['blues'].chords.map(c=>({...c})),customProg:false,dia7:true};
+         prog:MODES['blues'].chords.map(c=>({...c})),customProg:false,dia7:true,
+         refKey:KEYS[3],refMinor:false};
 
 const P={playing:false,bpm:100,pat:'standard',bar:0,beat:0,timer:null,click:false};
 
@@ -592,7 +627,7 @@ function renderAll(){ boards.forEach(renderBoard); }
 /* ---------- player ---------- */
 function beatDur(){ return 60000/P.bpm; }
 function playSeq(){
-  return (S.mode==='blues' && !S.customProg) ? PATTERNS[S.pat] : S.prog.map((_,i)=>i);
+  return (S.mode==='blues' && !S.customProg) ? PATTERNS[P.pat] : S.prog.map((_,i)=>i);
 }
 function onBar(){
   const seq=playSeq(); if(!seq.length) return;
@@ -800,5 +835,39 @@ function paint(){
 document.getElementById('clearChord').onclick=()=>{S.chord=null;refresh();};
 document.getElementById('arpBtn').onclick=arpPreset;
 
-rebuildBoards(); paint(); paintStrip();
+function paintRef(){
+  const sel=document.getElementById('refKeySel');
+  if(sel && !sel.dataset.built){
+    sel.innerHTML=KEYS.map((K,i)=>`<option value="${i}">${K.n}</option>`).join('');
+    sel.dataset.built='1';
+    sel.onchange=()=>{ S.refKey=KEYS[+sel.value]; paintRef(); };
+  }
+  if(sel) sel.value=KEYS.indexOf(S.refKey);
+
+  const tn=document.getElementById('refTon');
+  if(tn){ tn.innerHTML='';
+    [['Major',false],['Minor',true]].forEach(([l,v])=>
+      tn.append(chip(l,S.refMinor===v,()=>{S.refMinor=v;paintRef();}))); }
+
+  const tab=document.getElementById('refTable'); if(!tab) return;
+  const D=DIATONIC[S.refMinor?'minor':'major'];
+  const modes=S.refMinor?MIN_MODES:MAJ_MODES;
+  const spell=pc=>(S.refKey.f?FLAT:SHARP)[pc%12];
+  let rows='';
+  D.deg.forEach((dd,i)=>{
+    const pc=(S.refKey.pc+dd)%12;
+    rows+=`<tr${i===0?' class="tonic"':''}>
+      <td class="deg">${DEG[dd]}</td>
+      <td class="note">${spell(pc)}</td>
+      <td class="mode">${modes[i]}</td>
+      <td class="qual"><b>${spell(pc)+SUF[D.sev[i]]}</b><span class="w">${QWORD[D.tri[i]]}</span></td>
+    </tr>`;
+  });
+  tab.innerHTML=`<div class="refcap">${S.refKey.n} ${S.refMinor?'minor':'major'} scale</div>
+    <table class="reftable"><thead><tr>
+      <th>Interval</th><th>Note</th><th>Mode</th><th>Chord</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+rebuildBoards(); paint(); paintStrip(); paintRef();
 </script>
