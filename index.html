@@ -139,6 +139,10 @@
   .reftable td.note{font-family:'IBM Plex Mono',monospace;font-weight:600;width:64px}
   .reftable td.qual b{font-family:'IBM Plex Mono',monospace;font-weight:600}
   .reftable td.qual .w{color:var(--silk-dim);margin-left:7px;font-size:12.5px}
+  .reftable td.flav b{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--amber)}
+  .reftable td.flav .w{color:var(--amber);margin-left:6px;font-size:12.5px;opacity:.8}
+  .refnote{font-size:12.5px;color:var(--silk-dim);margin-top:10px;line-height:1.5;max-width:64ch}
+  .refnote b{color:var(--silk);font-weight:500}
   .reftable tr.tonic td{background:rgba(240,168,46,.09)}
   .reftable tr:last-child td{border-bottom:none}
 
@@ -368,6 +372,11 @@ const tonality=()=> S.mode==='major' ? 'major' : 'minor';
 const MAJ_MODES=['Ionian','Dorian','Phrygian','Lydian','Mixolydian','Aeolian','Locrian'];
 const MIN_MODES=['Aeolian','Locrian','Ionian','Dorian','Phrygian','Lydian','Mixolydian'];
 const QWORD={maj:'major',min:'minor',dim:'diminished'};
+const CHARTONE={
+  Ionian:{semi:11,lab:'7'},   Dorian:{semi:9,lab:'6'},   Phrygian:{semi:1,lab:'b2'},
+  Lydian:{semi:6,lab:'#4'},   Mixolydian:{semi:10,lab:'b7'},
+  Aeolian:{semi:8,lab:'b6'},  Locrian:{semi:6,lab:'b5'}
+};
 
 const MODES={
   major:{label:'Major',blue:[3,6],def:['majPent'],
@@ -856,17 +865,26 @@ function paintRef(){
   let rows='';
   D.deg.forEach((dd,i)=>{
     const pc=(S.refKey.pc+dd)%12;
+    const mode=modes[i], ct=CHARTONE[mode];
+    const cpc=(pc+ct.semi)%12;
     rows+=`<tr${i===0?' class="tonic"':''}>
       <td class="deg">${DEG[dd]}</td>
       <td class="note">${spell(pc)}</td>
-      <td class="mode">${modes[i]}</td>
-      <td class="qual"><b>${spell(pc)+SUF[D.sev[i]]}</b><span class="w">${QWORD[D.tri[i]]}</span></td>
+      <td class="mode">${mode}</td>
+      <td class="flav"><b>${spell(cpc)}</b><span class="w">${ct.lab}</span></td>
+      <td class="qual"><b>${spell(pc)+SUF[D.tri[i]]}</b><span class="w">${QWORD[D.tri[i]]}</span></td>
     </tr>`;
   });
+  let exI = modes.findIndex((m,ix)=> ix!==0 && m==='Aeolian');
+  if(exI<0) exI = modes.findIndex((m,ix)=> ix!==0 && m==='Dorian');
+  if(exI<0) exI=1;
+  const exMode=modes[exI], exPc=(S.refKey.pc+D.deg[exI])%12, exCt=CHARTONE[exMode];
+  const exChord=spell(exPc)+SUF[D.tri[exI]], exNote=spell((exPc+exCt.semi)%12);
   tab.innerHTML=`<div class="refcap">${S.refKey.n} ${S.refMinor?'minor':'major'} scale</div>
     <table class="reftable"><thead><tr>
-      <th>Interval</th><th>Note</th><th>Mode</th><th>Chord</th>
-    </tr></thead><tbody>${rows}</tbody></table>`;
+      <th>Interval</th><th>Note</th><th>Mode</th><th>Flavor</th><th>Chord</th>
+    </tr></thead><tbody>${rows}</tbody></table>
+    <p class="refnote"><b>Flavor</b> is the one note to lean on over that chord to bring out its mode \u2014 it's already in the scale, you're just pointing at it. Over the <b>${exChord}</b> (${exMode}) here, that's the ${exCt.lab}: play the <b>${exNote}</b> and you hear ${exMode} instead of plain ${S.refKey.n} ${S.refMinor?'minor':'major'}.</p>`;
 }
 
 rebuildBoards(); paint(); paintStrip(); paintRef();
